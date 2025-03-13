@@ -6,7 +6,8 @@
 const http = require('http');
 const https = require('https');
 const url = require('url');
-const dht = require('./dht');
+// Remove dependency on dht
+// const dht = require('./dht');
 const torService = require('./torService');
 
 class P2PService {
@@ -248,33 +249,28 @@ class P2PService {
             const response = {
               statusCode: res.statusCode,
               headers: res.headers,
-              body: data
+              data: data.length > 0 ? JSON.parse(data) : {}
             };
-            
-            if (res.headers['content-type']?.includes('application/json')) {
-              response.body = JSON.parse(data);
-            }
-            
             resolve(response);
           } catch (error) {
             reject(error);
           }
         });
       });
-
+      
       req.on('error', (error) => {
         reject(error);
       });
-
+      
       req.on('timeout', () => {
-        req.destroy();
+        req.abort();
         reject(new Error('Request timed out'));
       });
-
+      
       if (options.body) {
         req.write(options.body);
       }
-
+      
       req.end();
     });
   }
@@ -287,7 +283,7 @@ class P2PService {
   registerMessageCallback(messageId, callback) {
     this.messageCallbacks.set(messageId, callback);
     
-    // Clean up callback after 1 hour
+    // Remove the callback after 1 hour
     setTimeout(() => {
       this.messageCallbacks.delete(messageId);
     }, 3600000);
@@ -296,7 +292,7 @@ class P2PService {
   /**
    * Trigger a message callback
    * @param {string} messageId - Message ID
-   * @param {Object} status - Delivery status
+   * @param {Object} status - Message status
    */
   triggerMessageCallback(messageId, status) {
     const callback = this.messageCallbacks.get(messageId);
@@ -306,6 +302,4 @@ class P2PService {
   }
 }
 
-// Create and export a singleton instance
-const p2pService = new P2PService();
-module.exports = p2pService; 
+module.exports = new P2PService(); 

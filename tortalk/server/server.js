@@ -3,6 +3,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+// Import the p2pService
+const p2pService = require('./lib/p2pService');
 
 const app = express();
 app.use(cors());
@@ -10,7 +12,10 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all origins
+    // Update CORS to allow connections from our Docker containers
+    origin: ["http://localhost:3000", "http://localhost:3002", "http://localhost:3004", 
+             "http://localhost:9090", "http://localhost:9091", "http://localhost:9092", "http://localhost:9093",
+             "http://client1:80", "http://client2:80", "http://client:80"],
     methods: ["GET", "POST"]
   }
 });
@@ -210,12 +215,44 @@ io.on('connection', (socket) => {
 function start(port = 3001) {
   server.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    
+    // Start processing relayed messages
+    p2pService.processRelayedMessages(io);
+    console.log('Message relay service started');
   });
 }
 
 // API routes
 app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', users: connectedUsers.size });
+});
+
+// Health check endpoint for Docker container tests
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Add a relay endpoint
+app.post('/api/relay', express.json(), (req, res) => {
+  try {
+    const { message, sender, recipient } = req.body;
+    
+    if (!message || !sender || !recipient) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    p2pService.relayMessage(message, sender, recipient)
+      .then(result => {
+        res.json(result);
+      })
+      .catch(error => {
+        console.error('Error relaying message:', error);
+        res.status(500).json({ error: error.message });
+      });
+  } catch (error) {
+    console.error('Error processing relay request:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Export the server functions
@@ -226,4 +263,7 @@ module.exports = {
 // Simple route for testing
 app.get('/', (req, res) => {
   res.send('TorTalk WebSocket Server');
-}); 
+});
+
+// Start the server
+start(3001); 

@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Server service
+  server:
+    build:
+      context: ./tortalk/server
+      dockerfile: Dockerfile
+    container_name: tortalk-server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - tortalk-network
+
+  # Client service
+  client:
+    build:
+      context: ./tortalk
+      dockerfile: Dockerfile
+    container_name: tortalk-client
+    restart: unless-stopped
+    ports:
+      - "9090:80"
+    depends_on:
+      - server
+    networks:
+      - tortalk-network
+
+  # Second client service
+  client2:
+    build:
+      context: ./tortalk
+      dockerfile: Dockerfile
+    container_name: tortalk-client2
+    restart: unless-stopped
+    ports:
+      - "9091:80"
+    depends_on:
+      - server
+    networks:
+      - tortalk-network
+
+# Define a network for the services
+networks:
+  tortalk-network:
+    driver: bridge 

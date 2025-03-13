@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Server service
+  server:
+    build:
+      context: ./tortalk/server
+      dockerfile: Dockerfile
+    container_name: tortalk-server-new
+    restart: unless-stopped
+    ports:
+      - "3002:3001"
+    environment:
+      - NODE_ENV=production
+      - ENABLE_RELAY=true
+    networks:
+      - tortalk-new-network
+    volumes:
+      - ./tortalk/server:/app
+      - /app/node_modules
+
+  # First client service
+  client1:
+    build:
+      context: ./tortalk
+      dockerfile: Dockerfile
+    container_name: tortalk-client1-new
+    restart: unless-stopped
+    ports:
+      - "9092:80"
+    depends_on:
+      - server
+    networks:
+      - tortalk-new-network
+    environment:
+      - REACT_APP_API_URL=http://localhost:3002
+      - REACT_APP_WEBSOCKET_URL=http://localhost:3002
+      - REACT_APP_ENABLE_RELAY=true
+
+  # Second client service
+  client2:
+    build:
+      context: ./tortalk
+      dockerfile: Dockerfile
+    container_name: tortalk-client2-new
+    restart: unless-stopped
+    ports:
+      - "9093:80"
+    depends_on:
+      - server
+    networks:
+      - tortalk-new-network
+    environment:
+      - REACT_APP_API_URL=http://localhost:3002
+      - REACT_APP_WEBSOCKET_URL=http://localhost:3002
+      - REACT_APP_ENABLE_RELAY=true
+
+# Define a network for the services
+networks:
+  tortalk-new-network:
+    driver: bridge 

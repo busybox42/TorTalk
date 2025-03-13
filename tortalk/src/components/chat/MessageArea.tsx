@@ -15,7 +15,11 @@ import {
   Send as SendIcon, 
   Lock as LockIcon,
   Wifi as WifiIcon,
-  WifiOff as WifiOffIcon
+  WifiOff as WifiOffIcon,
+  Check as CheckIcon,
+  DoneAll as DoneAllIcon,
+  AccessTime as PendingIcon,
+  Error as ErrorIcon
 } from '@mui/icons-material';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -77,6 +81,51 @@ const MessageArea: React.FC = () => {
   // Get connection type for the active contact
   const connectionType = activeContact ? getConnectionType(activeContact.id) : 'unknown';
 
+  // Get connection type icon and label
+  const getConnectionInfo = () => {
+    switch (connectionType) {
+      case 'direct':
+        return {
+          icon: <WifiIcon fontSize="small" color="success" />,
+          label: "Direct Tor",
+          tooltip: "Direct Tor connection (.onion)"
+        };
+      case 'server':
+        return {
+          icon: <WifiOffIcon fontSize="small" color="action" />,
+          label: "Server Relay",
+          tooltip: "Server-relayed connection"
+        };
+      default:
+        return {
+          icon: <WifiOffIcon fontSize="small" color="disabled" />,
+          label: "Unknown",
+          tooltip: "Connection type unknown"
+        };
+    }
+  };
+
+  const connectionInfo = getConnectionInfo();
+
+  // Get message status icon
+  const getMessageStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'sending':
+        return <PendingIcon fontSize="small" sx={{ fontSize: '0.8rem', ml: 0.5 }} />;
+      case 'sent':
+      case 'sent_relay':
+        return <CheckIcon fontSize="small" sx={{ fontSize: '0.8rem', ml: 0.5 }} />;
+      case 'delivered':
+        return <DoneAllIcon fontSize="small" sx={{ fontSize: '0.8rem', ml: 0.5 }} />;
+      case 'read':
+        return <DoneAllIcon fontSize="small" color="primary" sx={{ fontSize: '0.8rem', ml: 0.5 }} />;
+      case 'failed':
+        return <ErrorIcon fontSize="small" color="error" sx={{ fontSize: '0.8rem', ml: 0.5 }} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Chat Header */}
@@ -97,24 +146,22 @@ const MessageArea: React.FC = () => {
               >
                 {onlineUsers.has(activeContact.id) ? "Online" : "Offline"}
               </Typography>
+              <Tooltip title={connectionInfo.tooltip}>
+                <Chip
+                  icon={connectionInfo.icon}
+                  label={connectionInfo.label}
+                  size="small"
+                  variant="outlined"
+                  color={connectionType === 'direct' ? 'success' : 'default'}
+                  sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' } }}
+                />
+              </Tooltip>
             </Box>
           </Box>
-          
-          <Tooltip title={connectionType === 'direct' ? 'Direct Tor connection' : 'Server-relayed connection'}>
-            <Chip
-              icon={connectionType === 'direct' ? <WifiIcon fontSize="small" /> : <WifiOffIcon fontSize="small" />}
-              label={connectionType === 'direct' ? 'Direct' : 'Server'}
-              color={connectionType === 'direct' ? 'success' : 'default'}
-              size="small"
-              sx={{ ml: 1 }}
-            />
-          </Tooltip>
         </Box>
       ) : (
         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-          <Typography variant="subtitle1" color="text.secondary">
-            Select a contact to start chatting
-          </Typography>
+          <Typography variant="subtitle1">Select a contact to start chatting</Typography>
         </Box>
       )}
 
@@ -183,6 +230,15 @@ const MessageArea: React.FC = () => {
                           ) : (
                             <WifiOffIcon fontSize="small" color="action" sx={{ ml: 0.5, width: 16, height: 16 }} />
                           )}
+                        </Tooltip>
+                      )}
+                      
+                      {/* Message status indicator */}
+                      {isCurrentUser && (
+                        <Tooltip title={message.status || 'Unknown status'}>
+                          <Box component="span">
+                            {getMessageStatusIcon(message.status)}
+                          </Box>
                         </Tooltip>
                       )}
                     </Box>

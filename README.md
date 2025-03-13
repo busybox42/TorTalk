@@ -9,14 +9,18 @@ TorTalk is a secure messaging application that uses the Tor network for anonymou
 - **End-to-End Encryption**: Messages are encrypted using AES encryption
 - **Contact Management**: Add and manage contacts
 - **Modern UI**: Clean and intuitive user interface
+- **Docker Support**: Easy deployment with Docker containers
 
 ## Technical Stack
 
 - **Frontend**: React with TypeScript
+- **Backend**: Node.js with Express
+- **WebSockets**: Socket.io for real-time messaging
 - **UI Framework**: Material-UI (MUI)
 - **Routing**: React Router
 - **Encryption**: Web Cryptography API and CryptoJS
 - **Tor Integration**: tor-request and tor-control-promise libraries
+- **Containerization**: Docker and Docker Compose
 
 ## Getting Started
 
@@ -25,6 +29,7 @@ TorTalk is a secure messaging application that uses the Tor network for anonymou
 - Node.js (v14 or later)
 - npm or yarn
 - Tor Browser or Tor service running locally (for full functionality)
+- Docker and Docker Compose (for containerized deployment)
 
 ### Installation
 
@@ -46,6 +51,34 @@ TorTalk is a secure messaging application that uses the Tor network for anonymou
 
 4. Open your browser and navigate to `http://localhost:3000`
 
+### Docker Deployment
+
+We provide two Docker Compose configurations:
+
+1. **Standard Setup** (single client):
+   ```
+   ./start-docker.sh
+   ```
+   - Server: http://localhost:3001
+   - Client: http://localhost:9090
+
+2. **Testing Setup** (two clients for testing):
+   ```
+   ./start-new-docker.sh
+   ```
+   - Server: http://localhost:3002
+   - Client 1: http://localhost:9092
+   - Client 2: http://localhost:9093
+
+#### Docker Scripts
+
+- `start-docker.sh`: Start the standard Docker setup
+- `stop-docker.sh`: Stop the standard Docker setup
+- `start-new-docker.sh`: Start the testing Docker setup with two clients
+- `stop-new-docker.sh`: Stop the testing Docker setup
+- `test-new-docker.sh`: Run tests on the Docker setup
+- `cleanup-docker.sh`: Clean up all Docker resources (containers, volumes, networks)
+
 ## Important Notes
 
 - This is a demonstration application and should not be used for truly sensitive communications without further security auditing.
@@ -58,6 +91,7 @@ TorTalk is a secure messaging application that uses the Tor network for anonymou
 2. **Tor Connection**: The app connects to the Tor network for anonymous communication.
 3. **Encryption**: Messages are encrypted using AES encryption before being sent.
 4. **Secure Messaging**: Users can send and receive encrypted messages through the Tor network.
+5. **Message Relay**: If direct communication fails, messages are relayed through the server.
 
 ## Security Considerations
 

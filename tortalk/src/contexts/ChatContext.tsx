@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { encryptMessage, decryptMessage } from '../utils/encryption';
 import torService from '../services/torService';
+import config from '../utils/config';
 
 interface Message {
   id: string;
@@ -12,6 +13,7 @@ interface Message {
   content: string;
   timestamp: number;
   isEncrypted: boolean;
+  status?: 'sending' | 'sent' | 'sent_relay' | 'delivered' | 'read' | 'failed' | 'received';
 }
 
 interface Contact {
@@ -41,6 +43,7 @@ interface ChatContextType {
   sendMessage: (content: string, recipientId: string) => Promise<boolean>;
   setActiveContact: (contact: Contact) => void;
   addContact: (username: string, publicKey: string, userId?: string, onionAddress?: string) => void;
+  deleteContact: (contactId: string) => void;
   updateUserSettings: (settings: Partial<UserSettings>) => void;
   lookupUser: (username: string) => Promise<Contact | null>;
   onlineUsers: Set<string>;
@@ -81,38 +84,32 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    if (currentUser) {
-      // Connect to WebSocket server
-      const newSocket = io('http://localhost:3001');
-      setSocket(newSocket);
+    if (!socket) {
+      console.log(`Connecting to WebSocket server at ${config.socketUrl}`);
+      const newSocket = io(config.socketUrl);
       
-      // Clean up on unmount
-      return () => {
-        newSocket.disconnect();
-      };
-    }
-  }, [currentUser]);
-  
-  // Authenticate with WebSocket server when socket and user are available
-  useEffect(() => {
-    if (socket && currentUser) {
-      console.log(`Attempting to authenticate user: ${currentUser.username} (${currentUser.id})`);
-      console.log(`User public key: ${currentUser.publicKey ? 'Available' : 'Not available'}`);
-      
-      // Authenticate user
-      socket.emit('authenticate', {
-        userId: currentUser.id,
-        username: currentUser.username,
-        publicKey: currentUser.publicKey
+      newSocket.on('connect', () => {
+        console.log('Connected to WebSocket server');
+        setIsConnected(true);
+        
+        // If we have a current user, authenticate
+        if (currentUser) {
+          console.log(`Authenticating as ${currentUser.username}`);
+          newSocket.emit('authenticate', {
+            userId: currentUser.id,
+            username: currentUser.username,
+            publicKey: currentUser.publicKey
+          });
+        }
       });
       
       // Listen for authentication response
-      socket.on('authenticated', (response) => {
+      newSocket.on('authenticated', (response) => {
         console.log('Authentication response:', response);
       });
       
       // Listen for user status updates
-      socket.on('user_status', ({ userId, status }) => {
+      newSocket.on('user_status', ({ userId, status }) => {
         console.log(`User status update: ${userId} is now ${status}`);
         if (status === 'online') {
           setOnlineUsers(prev => new Set([...Array.from(prev), userId]));
@@ -126,7 +123,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       });
       
       // Listen for private messages
-      socket.on('private_message', (message) => {
+      newSocket.on('private_message', (message) => {
         console.log('Received private message:', message);
         
         // Decrypt the message if it's encrypted
@@ -160,14 +157,49 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }
       });
       
-      // Listen for message delivery status
-      socket.on('message_delivered', ({ messageId, status }) => {
-        console.log(`Message ${messageId} status: ${status}`);
-        // You could update the UI to show delivery status
+      // Add handler for message delivery status
+      newSocket.on('message_delivered', (data: { 
+        messageId: string, 
+        recipientId: string, 
+        status: string,
+        method?: string 
+      }) => {
+        console.log(`Message ${data.messageId} delivered to ${data.recipientId} via ${data.method || 'unknown'}`);
+        
+        // Update message status
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === data.messageId 
+              ? { 
+                  ...msg, 
+                  status: data.status as any,
+                  // If method is 'relay', update the status to 'sent_relay'
+                  ...(data.method === 'relay' ? { status: 'sent_relay' as any } : {})
+                } 
+              : msg
+          )
+        );
+        
+        // If method is 'relay', update contact connection type
+        if (data.method === 'relay') {
+          setContacts(prevContacts => 
+            prevContacts.map(c => 
+              c.id === data.recipientId 
+                ? { ...c, connectionType: 'server' } 
+                : c
+            )
+          );
+        }
       });
+      
+      setSocket(newSocket);
+      
+      return () => {
+        newSocket.disconnect();
+      };
     }
-  }, [socket, currentUser, contacts, encryptionKey, userSettings.notificationsEnabled]);
-
+  }, [currentUser]);
+  
   // Load user settings from localStorage
   useEffect(() => {
     if (currentUser) {
@@ -265,20 +297,35 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         content: encryptedContent,
         timestamp: Date.now(),
         isEncrypted: true,
-        type: 'chat_message'
+        type: 'chat_message',
+        status: 'sending' as 'sending' | 'sent' | 'sent_relay' | 'delivered' | 'read' | 'failed' | 'received' // Add status field for tracking message delivery
       };
 
       // Find the recipient contact
       const recipient = contacts.find(c => c.id === recipientId);
       
-      // Try direct messaging if both users have Tor hidden services
+      // Always try direct messaging first if possible
       let sentDirectly = false;
+      let directAttempted = false;
       
-      if (recipient?.onionAddress && isConnected && torService.getHiddenService()) {
+      // Try direct messaging if we have the recipient's onion address and direct messaging is enabled
+      if (recipient?.onionAddress && !config.enableRelay) {
         try {
+          directAttempted = true;
           console.log(`Attempting direct message to ${recipient.username} at ${recipient.onionAddress}`);
           
-          sentDirectly = await torService.sendDirectMessage(recipient.onionAddress, messageData);
+          // Set a timeout for direct connection attempt
+          const directMessagePromise = torService.sendDirectMessage(recipient.onionAddress, messageData);
+          const timeoutPromise = new Promise<boolean>((_, reject) => {
+            setTimeout(() => reject(new Error('Direct message timeout')), 5000);
+          });
+          
+          // Race between direct message and timeout
+          sentDirectly = await Promise.race([directMessagePromise, timeoutPromise])
+            .catch(error => {
+              console.warn(`Direct message attempt failed: ${error.message}`);
+              return false;
+            });
           
           if (sentDirectly) {
             console.log(`Message sent directly to ${recipient.username}`);
@@ -293,6 +340,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 )
               );
             }
+            
+            // Update message status
+            messageData.status = 'sent' as 'sending' | 'sent' | 'sent_relay' | 'delivered' | 'read' | 'failed' | 'received';
           }
         } catch (error) {
           console.error('Failed to send direct message:', error);
@@ -300,8 +350,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       }
       
       // Fall back to server relay if direct messaging failed or wasn't possible
-      if (!sentDirectly) {
-        console.log('Using server relay for message delivery');
+      // or if relay is explicitly enabled
+      if (!sentDirectly || config.enableRelay) {
+        console.log(directAttempted ? 
+          'Direct messaging failed, falling back to server relay' : 
+          'Using server relay for messaging');
         
         // Update contact connection type
         if (recipient && recipient.connectionType !== 'server') {
@@ -316,6 +369,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         
         // Send message through WebSocket
         socket.emit('private_message', messageData);
+        
+        // Update message status
+        messageData.status = 'sent_relay' as 'sending' | 'sent' | 'sent_relay' | 'delivered' | 'read' | 'failed' | 'received';
       }
       
       // Add message to local state (unencrypted for display)
@@ -326,7 +382,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         recipientId,
         content, // Unencrypted for local display
         timestamp: messageData.timestamp,
-        isEncrypted: false
+        isEncrypted: false,
+        status: messageData.status // Include status in local message
       };
       
       setMessages(prevMessages => [...prevMessages, localMessage]);
@@ -388,12 +445,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       }
       
       console.log(`Looking up user with username: ${username}`);
-      console.log('Socket connected:', !!socket);
-      console.log('Socket ID:', socket.id);
       
       // Send lookup request
       socket.emit('lookup_user', { username });
-      console.log('Emitted lookup_user event');
       
       // Listen for response
       const onUserFound = (user: { userId: string; username: string; publicKey: string }) => {
@@ -422,7 +476,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Set up listeners
       socket.on('user_found', onUserFound);
       socket.on('user_not_found', onUserNotFound);
-      console.log('Set up socket listeners for user_found and user_not_found');
       
       // Set timeout
       setTimeout(() => {
@@ -516,7 +569,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         recipientId: currentUser?.id || '',
         content,
         timestamp: message.timestamp || Date.now(),
-        isEncrypted: false
+        isEncrypted: false,
+        status: 'received'
       };
       
       // Add to messages state
@@ -637,6 +691,26 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     return 'server';
   };
 
+  // Delete a contact
+  const deleteContact = (contactId: string) => {
+    // Remove the contact from the list
+    setContacts(prevContacts => prevContacts.filter(c => c.id !== contactId));
+    
+    // If the deleted contact is the active contact, clear it
+    if (activeContact && activeContact.id === contactId) {
+      setActiveContact(null);
+    }
+    
+    // Remove all messages with this contact
+    setMessages(prevMessages => 
+      prevMessages.filter(m => 
+        m.senderId !== contactId && m.recipientId !== contactId
+      )
+    );
+    
+    console.log(`Contact deleted: ${contactId}`);
+  };
+
   const value = {
     messages,
     contacts,
@@ -649,6 +723,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     sendMessage,
     setActiveContact,
     addContact,
+    deleteContact,
     updateUserSettings,
     lookupUser,
     onlineUsers,

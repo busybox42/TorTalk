@@ -2,6 +2,7 @@
 // In a real application, you would need a backend service to handle Tor connections
 
 import axios from 'axios';
+import config from '../utils/config';
 
 interface TorSettings {
   autoConnect: boolean;
@@ -21,7 +22,7 @@ class TorService {
   private torHost: string = 'localhost';
   private torSocksPort: number = 9050;
   private hiddenService: HiddenServiceInfo | null = null;
-  private serverUrl: string = 'http://localhost:3001';
+  private serverUrl: string = config.serverUrl;
   private messageHandlers: Map<string, (message: any) => void> = new Map();
   private directMessageServer: any = null; // In a real app, this would be a proper HTTP server
 

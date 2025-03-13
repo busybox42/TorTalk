@@ -15,7 +15,6 @@
     "kad": "^2.5.1",
     "kad-fs": "^0.0.4",
     "tor-control": "^0.0.3",
-    "node-dht": "^0.0.3",
     "level": "^8.0.0"
   },
   "devDependencies": {
