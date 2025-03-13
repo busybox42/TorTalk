@@ -1,0 +1,59 @@
+
+> tortalk@0.1.0 test
+> react-scripts test --watchAll=false src/__tests__/ChatContext.test.tsx
+
+FAIL src/__tests__/ChatContext.test.tsx
+  ● Test suite failed to run
+
+    ReferenceError: /home/alan/repos/TorTalk/tortalk/src/__tests__/ChatContext.test.tsx: The module factory of `jest.mock()` is not allowed to reference any out-of-scope variables.
+    Invalid variable access: React
+    Allowed objects: AbortController, AbortSignal, AggregateError, Array, ArrayBuffer, Atomics, BigInt, BigInt64Array, BigUint64Array, Blob, Boolean, BroadcastChannel, Buffer, ByteLengthQueuingStrategy, CloseEvent, CompressionStream, CountQueuingStrategy, Crypto, CryptoKey, CustomEvent, DOMException, DataView, Date, DecompressionStream, Error, EvalError, Event, EventTarget, File, FinalizationRegistry, Float32Array, Float64Array, FormData, Function, Generator, GeneratorFunction, Headers, Infinity, Int16Array, Int32Array, Int8Array, InternalError, Intl, Iterator, JSON, Map, Math, MessageChannel, MessageEvent, MessagePort, NaN, Navigator, Number, Object, Performance, PerformanceEntry, PerformanceMark, PerformanceMeasure, PerformanceObserver, PerformanceObserverEntryList, PerformanceResourceTiming, Promise, Proxy, RangeError, ReadableByteStreamController, ReadableStream, ReadableStreamBYOBReader, ReadableStreamBYOBRequest, ReadableStreamDefaultController, ReadableStreamDefaultReader, ReferenceError, Reflect, RegExp, Request, Response, Set, SharedArrayBuffer, String, SubtleCrypto, Symbol, SyntaxError, TextDecoder, TextDecoderStream, TextEncoder, TextEncoderStream, TransformStream, TransformStreamDefaultController, TypeError, URIError, URL, URLSearchParams, Uint16Array, Uint32Array, Uint8Array, Uint8ClampedArray, WeakMap, WeakRef, WeakSet, WebAssembly, WebSocket, WritableStream, WritableStreamDefaultController, WritableStreamDefaultWriter, __dirname, __filename, arguments, atob, btoa, clearImmediate, clearInterval, clearTimeout, console, crypto, decodeURI, decodeURIComponent, encodeURI, encodeURIComponent, escape, eval, expect, exports, fetch, global, globalThis, isFinite, isNaN, jest, module, navigator, parseFloat, parseInt, performance, process, queueMicrotask, require, setImmediate, setInterval, setTimeout, structuredClone, undefined, unescape.
+    Note: This is a precaution to guard against uninitialized mock variables. If it is ensured that the mock is required lazily, variable names prefixed with `mock` (case insensitive) are permitted.
+
+      75 |     ...originalModule,
+      76 |     ChatProvider: ({ children }: { children: React.ReactNode }) => {
+    > 77 |       const [contacts, setContacts] = React.useState<any[]>([]);
+         |                                       ^^^^^
+      78 |       const [activeContact, setActiveContact] = React.useState<any | null>(null);
+      79 |       const [messages, setMessages] = React.useState<any[]>([]);
+      80 |
+
+      at File.buildError [as buildCodeFrameError] (node_modules/@babel/core/src/transformation/file/file.ts:247:12)
+      at NodePath.buildCodeFrameError (node_modules/@babel/traverse/src/path/index.ts:141:21)
+      at call (node_modules/@babel/traverse/src/visitors.ts:303:14)
+      at NodePath.call [as _call] (node_modules/@babel/traverse/src/path/context.ts:36:20)
+      at NodePath.call (node_modules/@babel/traverse/src/path/context.ts:21:18)
+      at NodePath.visit (node_modules/@babel/traverse/src/path/context.ts:97:31)
+      at TraversalContext.visitQueue (node_modules/@babel/traverse/src/context.ts:148:16)
+      at TraversalContext.visitMultiple (node_modules/@babel/traverse/src/context.ts:99:17)
+      at TraversalContext.visit (node_modules/@babel/traverse/src/context.ts:178:19)
+      at traverseNode (node_modules/@babel/traverse/src/traverse-node.ts:40:17)
+      at NodePath.visit (node_modules/@babel/traverse/src/path/context.ts:104:33)
+      at TraversalContext.visitQueue (node_modules/@babel/traverse/src/context.ts:148:16)
+      at TraversalContext.visitSingle (node_modules/@babel/traverse/src/context.ts:109:19)
+      at TraversalContext.visit (node_modules/@babel/traverse/src/context.ts:180:19)
+      at traverseNode (node_modules/@babel/traverse/src/traverse-node.ts:40:17)
+      at traverse (node_modules/@babel/traverse/src/index.ts:83:15)
+      at transformFile (node_modules/@babel/core/src/transformation/index.ts:119:15)
+          at transformFile.next (<anonymous>)
+      at run (node_modules/@babel/core/src/transformation/index.ts:49:12)
+          at run.next (<anonymous>)
+      at transform (node_modules/@babel/core/src/transform.ts:29:20)
+          at transform.next (<anonymous>)
+      at evaluateSync (node_modules/gensync/index.js:251:28)
+      at fn (node_modules/gensync/index.js:89:14)
+      at stopHiding - secret - don't use this - v1 (node_modules/@babel/core/src/errors/rewrite-stack-trace.ts:99:14)
+      at transformSync (node_modules/@babel/core/src/transform.ts:66:52)
+      at ScriptTransformer.transformSource (node_modules/react-scripts/node_modules/@jest/transform/build/ScriptTransformer.js:619:31)
+      at ScriptTransformer._transformAndBuildScript (node_modules/react-scripts/node_modules/@jest/transform/build/ScriptTransformer.js:765:40)
+      at ScriptTransformer.transform (node_modules/react-scripts/node_modules/@jest/transform/build/ScriptTransformer.js:822:19)
+      at TestScheduler.scheduleTests (node_modules/react-scripts/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (node_modules/react-scripts/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (node_modules/react-scripts/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (node_modules/react-scripts/node_modules/@jest/core/build/cli/index.js:173:3)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        0.741 s
+Ran all test suites matching /src\/__tests__\/ChatContext.test.tsx/i.
